@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, TrendingUp, DollarSign, AlertTriangle, Settings, Play, Pause, BarChart3, TestTube, Terminal, Wifi, FileText } from 'lucide-react';
+import { Activity, TrendingUp, DollarSign, AlertTriangle, Settings, Play, Pause, BarChart3, TestTube, Terminal, Wifi, FileText, Zap, List, TrendingDown } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import RiskControls from './components/RiskControls';
 import PositionManager from './components/PositionManager';
@@ -10,6 +10,9 @@ import SystemLogs from './components/SystemLogs';
 import ConfigManager from './components/ConfigManager';
 import ExchangeConnections from './components/ExchangeConnections';
 import KuCoinTest from './components/KuCoinTest';
+import LiveTransactions from './components/LiveTransactions';
+import LiveOrders from './components/LiveOrders';
+import PnLAnalytics from './components/PnLAnalytics';
 import { MarketMakerProvider } from './context/MarketMakerContext';
 
 function App() {
@@ -18,6 +21,9 @@ function App() {
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Activity },
+    { id: 'live-transactions', label: 'Live Transactions', icon: Zap },
+    { id: 'live-orders', label: 'Live Orders', icon: List },
+    { id: 'pnl', label: 'PnL Analytics', icon: TrendingDown },
     { id: 'positions', label: 'Positions', icon: TrendingUp },
     { id: 'metrics', label: 'Metrics', icon: BarChart3 },
     { id: 'backtest', label: 'Backtest', icon: TestTube },
@@ -33,6 +39,12 @@ function App() {
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard />;
+      case 'live-transactions':
+        return <LiveTransactions />;
+      case 'live-orders':
+        return <LiveOrders />;
+      case 'pnl':
+        return <PnLAnalytics />;
       case 'positions':
         return <PositionManager />;
       case 'metrics':
