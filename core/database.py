@@ -38,7 +38,7 @@ class Trade(Base):
     status = Column(String, default="open")  # open/filled/canceled/rejected
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     filled_at = Column(DateTime, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    trade_metadata = Column(JSON, nullable=True)
 
 class Position(Base):
     """Registro de posiciones"""
@@ -59,7 +59,7 @@ class Position(Base):
     opened_at = Column(DateTime, default=datetime.utcnow, index=True)
     closed_at = Column(DateTime, nullable=True)
     is_open = Column(Boolean, default=True, index=True)
-    metadata = Column(JSON, nullable=True)
+    position_metadata = Column(JSON, nullable=True)
 
 class SystemMetric(Base):
     """Métricas del sistema por timestamp"""
@@ -76,7 +76,7 @@ class SystemMetric(Base):
     healthy_exchanges = Column(Integer)
     open_circuits = Column(Integer)
     risk_mode = Column(String)
-    metadata = Column(JSON, nullable=True)
+    metric_metadata = Column(JSON, nullable=True)
 
 class CircuitBreakerEvent(Base):
     """Eventos de circuit breakers"""
@@ -92,7 +92,7 @@ class CircuitBreakerEvent(Base):
     duration_seconds = Column(Integer)
     resolved_at = Column(DateTime, nullable=True, index=True)
     is_resolved = Column(Boolean, default=False, index=True)
-    metadata = Column(JSON, nullable=True)
+    event_metadata = Column(JSON, nullable=True)
 
 class ExchangeHealth(Base):
     """Historial de salud de exchanges"""
@@ -107,7 +107,7 @@ class ExchangeHealth(Base):
     error_count = Column(Integer)
     api_calls_used = Column(Integer)
     api_calls_limit = Column(Integer)
-    metadata = Column(JSON, nullable=True)
+    health_metadata = Column(JSON, nullable=True)
 
 class Alert(Base):
     """Registro de alertas enviadas"""
@@ -122,7 +122,7 @@ class Alert(Base):
     symbol = Column(String, nullable=True)
     sent_telegram = Column(Boolean, default=False)
     sent_at = Column(DateTime, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    alert_metadata = Column(JSON, nullable=True)
 
 class BalanceSnapshot(Base):
     """Snapshots de balance por exchange"""
@@ -136,7 +136,7 @@ class BalanceSnapshot(Base):
     used = Column(Float)
     total = Column(Float)
     usd_value = Column(Float, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    snapshot_metadata = Column(JSON, nullable=True)
 
 # Crear todas las tablas
 def init_db():

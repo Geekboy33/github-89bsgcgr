@@ -130,34 +130,34 @@ class ExchangeWrapper:
                 if self.exchange_name == "binance" and self.config.get('hedge_mode', True):
                     try:
                         await self.exchange.set_position_mode(True)  # True = HEDGE
-                        logger.info(f"✅ Hedge mode enabled on {self.exchange_name}")
+                        logger.info(f"Hedge mode enabled on {self.exchange_name}")
                     except Exception as e:
                         logger.warning(f"Could not set hedge mode on {self.exchange_name}: {e}")
                         
                 elif self.exchange_name == "okx" and self.config.get('hedge_mode', True):
                     try:
                         await self.exchange.set_position_mode(True)
-                        logger.info(f"✅ Hedge mode enabled on {self.exchange_name}")
+                        logger.info(f"Hedge mode enabled on {self.exchange_name}")
                     except Exception as e:
                         logger.warning(f"Could not set hedge mode on {self.exchange_name}: {e}")
                         
                 elif self.exchange_name == "bybit" and self.config.get('hedge_mode', True):
                     try:
                         await self.exchange.set_position_mode(True)
-                        logger.info(f"✅ Hedge mode enabled on {self.exchange_name}")
+                        logger.info(f"Hedge mode enabled on {self.exchange_name}")
                     except Exception as e:
                         logger.warning(f"Could not set hedge mode on {self.exchange_name}: {e}")
                 
-                logger.info(f"✅ Successfully connected to {self.exchange_name}")
+                logger.info(f"Successfully connected to {self.exchange_name}")
                 return True
                 
             except ccxt.AuthenticationError as e:
-                logger.error(f"❌ Authentication failed for {self.exchange_name}: {e}")
+                logger.error(f"Authentication failed for {self.exchange_name}: {e}")
                 raise ExchangeConnectionError(f"Invalid credentials for {self.exchange_name}")
                 
             except ccxt.NetworkError as e:
                 logger.warning(
-                    f"⚠️ Network error on {self.exchange_name} (attempt {attempt+1}/{max_retries}): {e}",
+                    f"Network error on {self.exchange_name} (attempt {attempt+1}/{max_retries}): {e}",
                     extra={'exchange': self.exchange_name, 'attempt': attempt+1}
                 )
                 if attempt < max_retries - 1:
@@ -166,7 +166,7 @@ class ExchangeWrapper:
                 raise ExchangeConnectionError(f"Network error on {self.exchange_name}")
                 
             except Exception as e:
-                logger.error(f"❌ Unexpected error connecting to {self.exchange_name}: {e}")
+                logger.error(f"Unexpected error connecting to {self.exchange_name}: {e}")
                 raise ExchangeConnectionError(f"Failed to connect: {e}")
         
         return False
@@ -241,7 +241,7 @@ class ExchangeWrapper:
                 required_balance = amount * (price if price else 0)
                 if price and required_balance > usdt_balance:
                     logger.warning(
-                        f"⚠️ Potentially insufficient balance: need {required_balance:.2f}, have {usdt_balance:.2f}",
+                        f"Potentially insufficient balance: need {required_balance:.2f}, have {usdt_balance:.2f}",
                         extra={'exchange': self.exchange_name, 'symbol': symbol}
                     )
             except Exception as e:
@@ -263,7 +263,7 @@ class ExchangeWrapper:
             order = await self.exchange.create_order(symbol, type.value, side.value, amount, price, params)
             
             logger.info(
-                f"✅ Order created: {order.get('id')} - {symbol} {side.value} {amount}",
+                f"Order created: {order.get('id')} - {symbol} {side.value} {amount}",
                 extra={
                     'exchange': self.exchange_name,
                     'symbol': symbol,
@@ -297,16 +297,16 @@ class ExchangeWrapper:
         except InvalidOrderError:
             raise
         except ccxt.InsufficientFunds as e:
-            logger.error(f"❌ Insufficient funds: {e}", extra={'exchange': self.exchange_name})
+            logger.error(f"Insufficient funds: {e}", extra={'exchange': self.exchange_name})
             raise InsufficientBalanceError(f"Exchange reports insufficient funds: {e}")
         except ccxt.InvalidOrder as e:
-            logger.error(f"❌ Invalid order: {e}", extra={'exchange': self.exchange_name})
+            logger.error(f"Invalid order: {e}", extra={'exchange': self.exchange_name})
             raise InvalidOrderError(f"Invalid order parameters: {e}")
         except ccxt.NetworkError as e:
-            logger.error(f"❌ Network error creating order: {e}", extra={'exchange': self.exchange_name})
+            logger.error(f"Network error creating order: {e}", extra={'exchange': self.exchange_name})
             raise ExchangeConnectionError(f"Network error: {e}")
         except Exception as e:
-            logger.error(f"❌ Unexpected error creating order: {e}", extra={'exchange': self.exchange_name})
+            logger.error(f"Unexpected error creating order: {e}", extra={'exchange': self.exchange_name})
             raise MarketMakerException(f"Order creation failed: {e}")
 
     async def cancel_order(self, order_id: str, symbol: str):

@@ -110,9 +110,58 @@ def load_config():
         secrets["exchanges"]["kucoin"]["passphrase"] = kucoin_passphrase
         logger.info("KuCoin credentials loaded from .env")
 
-    logger.info("✅ Configuration loaded successfully")
+    logger.info("Configuration loaded successfully")
     
     return cfg, secrets
+
+
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events"""
+    global multi_exchange_manager
+    
+    # Startup
+    logger.info("Starting MarketMaker Pro v4.2...")
+    
+    # Initialize database
+    init_db()
+    logger.info("Database initialized")
+    
+    # Create multi-exchange manager
+    logger.info("Creating multi-exchange manager...")
+    multi_exchange_manager = MultiExchangeManager(app_config, app_secrets)
+
+    logger.info("Initializing multi-exchange manager...")
+    try:
+        await multi_exchange_manager.initialize()
+        logger.info(f"Multi-exchange manager initialized with {len(multi_exchange_manager.exchanges)} exchanges")
+        logger.info(f"Available exchanges: {list(multi_exchange_manager.exchanges.keys())}")
+    except Exception as e:
+        logger.error(f"Failed to initialize multi-exchange manager: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        raise
+    
+    # Start health monitoring in background
+    asyncio.create_task(multi_exchange_manager.start_health_monitoring())
+    logger.info("Health monitoring started")
+    
+    # Send startup alert
+    await multi_exchange_manager.alert_manager.alert_system_startup("4.2")
+    
+    logger.info("MarketMaker Pro started successfully")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down MarketMaker Pro...")
+    
+    if multi_exchange_manager:
+        await multi_exchange_manager.alert_manager.alert_system_shutdown()
+        await multi_exchange_manager.shutdown()
+    
+    logger.info("Shutdown complete")
 
 
 def create_app():
@@ -123,7 +172,8 @@ def create_app():
     app = FastAPI(
         title="MarketMaker Pro API",
         version="4.2",
-        description="Advanced Market Making Bot with Multi-Exchange Support"
+        description="Advanced Market Making Bot with Multi-Exchange Support",
+        lifespan=lifespan
     )
     
     # Add CORS middleware
@@ -139,44 +189,6 @@ def create_app():
 
 
 app = create_app()
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize system on startup"""
-    global multi_exchange_manager
-    
-    logger.info("🚀 Starting MarketMaker Pro v4.2...")
-    
-    # Initialize database
-    init_db()
-    logger.info("✅ Database initialized")
-    
-    # Create multi-exchange manager
-    multi_exchange_manager = MultiExchangeManager(app_config, app_secrets)
-    await multi_exchange_manager.initialize()
-    logger.info("✅ Multi-exchange manager initialized")
-    
-    # Start health monitoring in background
-    asyncio.create_task(multi_exchange_manager.start_health_monitoring())
-    logger.info("✅ Health monitoring started")
-    
-    # Send startup alert
-    await multi_exchange_manager.alert_manager.alert_system_startup("4.2")
-    
-    logger.info("🎉 MarketMaker Pro started successfully")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    logger.info("🛑 Shutting down MarketMaker Pro...")
-    
-    if multi_exchange_manager:
-        await multi_exchange_manager.alert_manager.alert_system_shutdown()
-        await multi_exchange_manager.shutdown()
-    
-    logger.info("✅ Shutdown complete")
 
 
 # ============================================================================
@@ -368,7 +380,7 @@ async def close_position(symbol: str, db: Session = Depends(get_db)):
             amount=size
         )
         
-        logger.info(f"✅ Position closed: {symbol} on {exchange.exchange_name}")
+        logger.info(f"Position closed: {symbol} on {exchange.exchange_name}")
         
         # Send alert
         pnl = position.get('unrealizedPnl', 0)
@@ -460,7 +472,7 @@ async def create_order(request: OrderCreateRequest, db: Session = Depends(get_db
         db.add(trade)
         db.commit()
         
-        logger.info(f"✅ Order created: {order.id}")
+        logger.info(f"Order created: {order.id}")
         
         return {
             "success": True,
@@ -494,7 +506,7 @@ async def cancel_order(order_id: str, symbol: str):
         
         await exchange.cancel_order(order_id, symbol)
         
-        logger.info(f"✅ Order canceled: {order_id}")
+        logger.info(f"Order canceled: {order_id}")
         
         return {
             "success": True,
@@ -611,7 +623,7 @@ async def update_risk_mode(request: RiskModeUpdate):
     # Update in config
     app_config["market_maker_v4_2"]["risk_mode"] = request.mode
     
-    logger.info(f"✅ Risk mode updated to: {request.mode}")
+    logger.info(f"Risk mode updated to: {request.mode}")
     
     return {
         "success": True,
@@ -723,6 +735,317 @@ async def kucoin_test_proxy(request: KuCoinTestRequest):
 # HISTORY ENDPOINTS
 # ============================================================================
 
+# ============================================================================
+# KUCOIN INFORMATION ENDPOINTS
+# ============================================================================
+
+@app.get("/api/v1/kucoin/symbols")
+async def get_kucoin_symbols():
+    """Get all available symbols from KuCoin"""
+    try:
+        if not multi_exchange_manager:
+            raise HTTPException(status_code=503, detail="System not initialized")
+
+        # Get KuCoin exchange from manager
+        exchange = multi_exchange_manager.exchanges.get("kucoin")
+
+        markets = await exchange.fetch_markets()
+        usdt_symbols = [m for m in markets if m.get('quote') == 'USDT' and m.get('active')]
+
+        return {
+            "success": True,
+            "exchange": "kucoin",
+            "total_symbols": len(usdt_symbols),
+            "symbols": usdt_symbols[:50],  # Limit to first 50 for performance
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error getting KuCoin symbols: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/kucoin/ticker/{symbol}")
+async def get_kucoin_ticker(symbol: str):
+    """Get ticker information for a specific symbol from KuCoin"""
+    try:
+        if not multi_exchange_manager:
+            raise HTTPException(status_code=503, detail="System not initialized")
+
+        # Get KuCoin exchange from manager
+        exchange = multi_exchange_manager.exchanges.get("kucoin")
+        if not exchange:
+            logger.warning("KuCoin exchange not found in manager, creating temporary exchange")
+            # Create temporary exchange for this request
+            full_config = {
+                "api_key": app_secrets["exchanges"]["kucoin"]["api_key"],
+                "api_secret": app_secrets["exchanges"]["kucoin"]["api_secret"],
+                "passphrase": app_secrets["exchanges"]["kucoin"]["passphrase"],
+                "api_timeout": 30,
+                "rate_limit": 600,
+                "default_type": "future",
+                "hedge_mode": False,
+                "testnet": False
+            }
+            exchange = ExchangeFactory.create_exchange("kucoin", full_config)
+            await exchange.connect()
+
+        ticker = await exchange.fetch_ticker(symbol)
+
+        return {
+            "success": True,
+            "exchange": "kucoin",
+            "symbol": symbol,
+            "ticker": ticker,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error getting KuCoin ticker for {symbol}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/kucoin/balance")
+async def get_kucoin_balance():
+    """Get account balance from KuCoin"""
+    try:
+        if not multi_exchange_manager:
+            raise HTTPException(status_code=503, detail="System not initialized")
+
+        # Get KuCoin exchange from manager
+        exchange = multi_exchange_manager.exchanges.get("kucoin")
+        if not exchange:
+            logger.warning("KuCoin exchange not found in manager, creating temporary exchange")
+            # Create temporary exchange for this request
+            full_config = {
+                "api_key": app_secrets["exchanges"]["kucoin"]["api_key"],
+                "api_secret": app_secrets["exchanges"]["kucoin"]["api_secret"],
+                "passphrase": app_secrets["exchanges"]["kucoin"]["passphrase"],
+                "api_timeout": 30,
+                "rate_limit": 600,
+                "default_type": "future",
+                "hedge_mode": False,
+                "testnet": False
+            }
+            exchange = ExchangeFactory.create_exchange("kucoin", full_config)
+            await exchange.connect()
+
+        balance = await exchange.fetch_balance()
+        total_usd = sum(float(v) for v in balance.get('total', {}).values() if v)
+
+        return {
+            "success": True,
+            "exchange": "kucoin",
+            "balance": balance,
+            "total_usd_value": total_usd,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error getting KuCoin balance: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/kucoin/orderbook/{symbol}")
+async def get_kucoin_orderbook(symbol: str, limit: int = 20):
+    """Get orderbook for a specific symbol from KuCoin"""
+    try:
+        if not multi_exchange_manager:
+            raise HTTPException(status_code=503, detail="System not initialized")
+
+        # Get KuCoin exchange from manager
+        exchange = multi_exchange_manager.exchanges.get("kucoin")
+        if not exchange:
+            logger.warning("KuCoin exchange not found in manager, creating temporary exchange")
+            # Create temporary exchange for this request
+            full_config = {
+                "api_key": app_secrets["exchanges"]["kucoin"]["api_key"],
+                "api_secret": app_secrets["exchanges"]["kucoin"]["api_secret"],
+                "passphrase": app_secrets["exchanges"]["kucoin"]["passphrase"],
+                "api_timeout": 30,
+                "rate_limit": 600,
+                "default_type": "future",
+                "hedge_mode": False,
+                "testnet": False
+            }
+            exchange = ExchangeFactory.create_exchange("kucoin", full_config)
+            await exchange.connect()
+
+        orderbook = await exchange.fetch_order_book(symbol, limit)
+
+        return {
+            "success": True,
+            "exchange": "kucoin",
+            "symbol": symbol,
+            "orderbook": orderbook,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error getting KuCoin orderbook for {symbol}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/kucoin/status")
+async def get_kucoin_status():
+    """Get KuCoin exchange status and information"""
+    try:
+        if not multi_exchange_manager:
+            raise HTTPException(status_code=503, detail="System not initialized")
+
+        # Get KuCoin exchange from manager
+        exchange = multi_exchange_manager.exchanges.get("kucoin")
+        if not exchange:
+            logger.warning("KuCoin exchange not found in manager, creating temporary exchange")
+            # Create temporary exchange for this request
+            full_config = {
+                "api_key": app_secrets["exchanges"]["kucoin"]["api_key"],
+                "api_secret": app_secrets["exchanges"]["kucoin"]["api_secret"],
+                "passphrase": app_secrets["exchanges"]["kucoin"]["passphrase"],
+                "api_timeout": 30,
+                "rate_limit": 600,
+                "default_type": "future",
+                "hedge_mode": False,
+                "testnet": False
+            }
+            exchange = ExchangeFactory.create_exchange("kucoin", full_config)
+            await exchange.connect()
+
+        # Get basic exchange info
+        exchange_info = {
+            "id": exchange.exchange.id,
+            "name": exchange.exchange.name,
+            "countries": exchange.exchange.countries,
+            "rateLimit": exchange.exchange.rateLimit,
+            "has": exchange.exchange.has,
+            "timeframes": list(exchange.exchange.timeframes.keys()) if hasattr(exchange.exchange, 'timeframes') else [],
+            "urls": exchange.exchange.urls
+        }
+
+        return {
+            "success": True,
+            "exchange": "kucoin",
+            "status": "connected",
+            "exchange_info": exchange_info,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error getting KuCoin status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/kucoin/markets")
+async def get_kucoin_markets(limit: int = 100):
+    """Get all available markets from KuCoin"""
+    try:
+        if not multi_exchange_manager:
+            raise HTTPException(status_code=503, detail="System not initialized")
+
+        # Get KuCoin exchange from manager
+        exchange = multi_exchange_manager.exchanges.get("kucoin")
+        if not exchange:
+            logger.warning("KuCoin exchange not found in manager, creating temporary exchange")
+            # Create temporary exchange for this request
+            full_config = {
+                "api_key": app_secrets["exchanges"]["kucoin"]["api_key"],
+                "api_secret": app_secrets["exchanges"]["kucoin"]["api_secret"],
+                "passphrase": app_secrets["exchanges"]["kucoin"]["passphrase"],
+                "api_timeout": 30,
+                "rate_limit": 600,
+                "default_type": "future",
+                "hedge_mode": False,
+                "testnet": False
+            }
+            exchange = ExchangeFactory.create_exchange("kucoin", full_config)
+            await exchange.connect()
+
+        markets = await exchange.fetch_markets()
+
+        # Filter and organize markets
+        spot_markets = [m for m in markets if m.get('spot') and m.get('active')]
+        futures_markets = [m for m in markets if m.get('future') and m.get('active')]
+
+        return {
+            "success": True,
+            "exchange": "kucoin",
+            "total_markets": len(markets),
+            "spot_markets": len(spot_markets),
+            "futures_markets": len(futures_markets),
+            "markets": markets[:limit],  # Limit for performance
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error getting KuCoin markets: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/kucoin/ohlcv/{symbol}")
+async def get_kucoin_ohlcv(symbol: str, timeframe: str = "1m", limit: int = 100):
+    """Get OHLCV data for a specific symbol from KuCoin"""
+    try:
+        if not multi_exchange_manager:
+            raise HTTPException(status_code=503, detail="System not initialized")
+
+        # Get KuCoin exchange from manager
+        exchange = multi_exchange_manager.exchanges.get("kucoin")
+
+        ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+
+        return {
+            "success": True,
+            "exchange": "kucoin",
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "limit": limit,
+            "ohlcv": ohlcv,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error getting KuCoin OHLCV for {symbol}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/kucoin/trades/{symbol}")
+async def get_kucoin_recent_trades(symbol: str, limit: int = 50):
+    """Get recent trades for a specific symbol from KuCoin"""
+    try:
+        if not multi_exchange_manager:
+            raise HTTPException(status_code=503, detail="System not initialized")
+
+        # Get KuCoin exchange from manager
+        exchange = multi_exchange_manager.exchanges.get("kucoin")
+
+        trades = await exchange.fetch_trades(symbol, limit=limit)
+
+        return {
+            "success": True,
+            "exchange": "kucoin",
+            "symbol": symbol,
+            "limit": limit,
+            "trades": trades,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error getting KuCoin trades for {symbol}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/kucoin/funding-rates/{symbol}")
+async def get_kucoin_funding_rates(symbol: str):
+    """Get funding rate history for a specific symbol from KuCoin"""
+    try:
+        if not multi_exchange_manager:
+            raise HTTPException(status_code=503, detail="System not initialized")
+
+        # Get KuCoin exchange from manager
+        exchange = multi_exchange_manager.exchanges.get("kucoin")
+
+        # Get funding rate history
+        funding_rates = await exchange.fetch_funding_rate_history(symbol, limit=100)
+
+        return {
+            "success": True,
+            "exchange": "kucoin",
+            "symbol": symbol,
+            "funding_rates": funding_rates,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error getting KuCoin funding rates for {symbol}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# HISTORY ENDPOINTS
+# ============================================================================
+
 @app.get("/api/v1/history/trades")
 async def get_trade_history(
     limit: int = 100,
@@ -792,6 +1115,6 @@ async def get_circuit_breaker_history(
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info("🚀 Starting MarketMaker Pro API Server...")
+    logger.info("Starting MarketMaker Pro API Server...")
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
 

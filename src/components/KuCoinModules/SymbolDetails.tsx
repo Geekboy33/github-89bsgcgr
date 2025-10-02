@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Info, TrendingUp, TrendingDown, DollarSign, Percent, Clock, Target } from 'lucide-react';
-import { makeKuCoinRequest } from '../../api/kucoin-proxy';
 
 interface SymbolDetail {
   symbol: string;
@@ -53,10 +52,19 @@ const SymbolDetails: React.FC = () => {
   const loadSymbols = async () => {
     try {
       setLoading(true);
-      const response = await makeKuCoinRequest('symbols');
+      setError(null);
 
-      if (response.success && response.data) {
-        const symbolList: SymbolDetail[] = Object.values(response.data)
+      // Use the new dedicated endpoint for KuCoin symbols
+      const response = await fetch('http://localhost:8000/api/v1/kucoin/symbols');
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.symbols) {
+        const symbolList: SymbolDetail[] = data.symbols
           .filter((symbol: any) => symbol.status === 'Open')
           .map((symbol: any) => ({
             symbol: symbol.symbol,
@@ -103,10 +111,10 @@ const SymbolDetails: React.FC = () => {
           setSymbolDetails(symbolList[0]);
         }
       } else {
-        setError(response.error || 'Error loading symbols');
+        setError(data.error || 'Error loading symbols from KuCoin');
       }
     } catch (err) {
-      setError('Failed to load symbols');
+      setError('Failed to load symbols from KuCoin');
       console.error('Symbols error:', err);
     } finally {
       setLoading(false);
