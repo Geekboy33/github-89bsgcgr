@@ -1,0 +1,30 @@
+{
+  "market_maker_v4_2": {
+    "risk_mode": "aggressive_plus",
+    "api_timeout": 30,
+    "rate_limit": 250,
+    "default_type": "future",
+    "hedge_mode": true,
+    "isolated_margin": true,
+    "leverage": 100,
+    "margin_pct": 0.01,
+    "refresh_ms": 250,
+    "latency_threshold_ms": 500,
+    "spread_threshold_bps": 20,
+    "error_rate_threshold": 0.1,
+    "volatility_threshold": 0.05,
+    "drawdown_threshold_bps": 100,
+    "circuit_cooldown_seconds": 300,
+    "metrics_window_size": 50,
+    "funding_threshold_bps": 0.01,
+    "funding_check_interval": 300,
+    "health_check_interval": 30,
+    "timeframe": "1m",
+    "mm_spread_bps": 6,
+    "ladder_levels_conservative": 1,
+    "ladder_levels_aggressive": 5,
+    "ladder_levels_aggressive_plus": 7,
+    "ladder_step_bps": 1.6,
+    "symbols": ["BTC/USDT", "ETH/USDT"]
+  }
+}

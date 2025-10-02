@@ -1,0 +1,205 @@
+market_maker_v4_2:
+  risk_mode: "aggressive_plus"   # conservative | aggressive | aggressive_plus
+  api_timeout: 30
+  rate_limit: 250
+  default_type: future
+  hedge_mode: true
+  isolated_margin: true
+  leverage: 100
+  margin_pct: 0.01
+  refresh_ms: 250
+  latency_threshold_ms: 500
+  spread_threshold_bps: 20
+  error_rate_threshold: 0.1
+  volatility_threshold: 0.05
+  drawdown_threshold_bps: 100
+  circuit_cooldown_seconds: 300
+  metrics_window_size: 50
+  funding_threshold_bps: 0.01
+  funding_check_interval: 300
+  health_check_interval: 30
+  timeframe: "1m"
+  mm_spread_bps: 6
+  ladder_levels_conservative: 1
+  ladder_levels_aggressive: 5
+  ladder_levels_aggressive_plus: 7
+  ladder_step_bps: 1.6
+  symbols: ["BTC/USDT", "ETH/USDT"]
+
+  # Multi-Exchange Configuration
+  exchanges:
+    binance:
+      enabled: true
+      priority: 1
+      default_type: "future"
+      hedge_mode: true
+      isolated_margin: true
+      leverage: 100
+      rate_limit: 1200
+      api_timeout: 30
+      testnet: false
+      features:
+        spot: true
+        futures: true
+        margin: true
+        options: false
+      symbols: ["BTC/USDT", "ETH/USDT", "BNB/USDT", "ADA/USDT"]
+      
+    kucoin:
+      enabled: true
+      priority: 2
+      default_type: "future"
+      hedge_mode: false
+      isolated_margin: true
+      leverage: 50
+      rate_limit: 600
+      api_timeout: 30
+      testnet: false
+      features:
+        spot: true
+        futures: true
+        margin: true
+        options: false
+      symbols: ["BTC/USDT", "ETH/USDT", "KCS/USDT"]
+      
+    okx:
+      enabled: true
+      priority: 3
+      default_type: "swap"
+      hedge_mode: true
+      isolated_margin: true
+      leverage: 75
+      rate_limit: 600
+      api_timeout: 30
+      testnet: false
+      features:
+        spot: true
+        futures: true
+        margin: true
+        options: true
+      symbols: ["BTC/USDT", "ETH/USDT", "OKB/USDT"]
+      
+    bybit:
+      enabled: false
+      priority: 4
+      default_type: "linear"
+      hedge_mode: true
+      isolated_margin: true
+      leverage: 100
+      rate_limit: 600
+      api_timeout: 30
+      testnet: false
+      features:
+        spot: true
+        futures: true
+        margin: false
+        options: true
+      symbols: ["BTC/USDT", "ETH/USDT"]
+      
+    gate:
+      enabled: false
+      priority: 5
+      default_type: "future"
+      hedge_mode: false
+      isolated_margin: true
+      leverage: 100
+      rate_limit: 900
+      api_timeout: 30
+      testnet: false
+      features:
+        spot: true
+        futures: true
+        margin: true
+        options: false
+      symbols: ["BTC/USDT", "ETH/USDT", "GT/USDT"]
+
+  # Exchange Selection Strategy
+  exchange_strategy:
+    mode: "failover"  # failover | load_balance | best_execution | single
+    primary_exchange: "binance"
+    failover_order: ["binance", "kucoin", "okx", "bybit", "gate"]
+    load_balance_weights:
+      binance: 0.4
+      kucoin: 0.25
+      okx: 0.2
+      bybit: 0.1
+      gate: 0.05
+    health_check_interval: 30
+    min_healthy_exchanges: 1
+    
+  # Symbol Distribution
+  symbol_distribution:
+    strategy: "exchange_native"  # all_exchanges | exchange_native | volume_based
+    cross_exchange_arbitrage: false
+    symbol_mapping:
+      "BTC/USDT": ["binance", "kucoin", "okx"]
+      "ETH/USDT": ["binance", "kucoin", "okx", "bybit"]
+      "BNB/USDT": ["binance"]
+      "KCS/USDT": ["kucoin"]
+      "OKB/USDT": ["okx"]
+
+  symbol_universe:
+    enabled: true
+    min_symbols: 20
+    max_symbols: 40
+    refresh_sec: 300
+    quote: "USDT"
+    per_exchange_scan: true
+    merge_strategy: "union"  # union | intersection | weighted
+
+  sizing:
+    usd_per_order_min: 50
+    usd_per_order_max: 500
+    vol_sensitivity: 0.5
+    vol_floor_bps: 4
+    per_symbol_turnover_target: 10
+    exchange_allocation:
+      binance: 0.4
+      kucoin: 0.25
+      okx: 0.2
+      bybit: 0.1
+      gate: 0.05
+
+  pnl_harvest:
+    rebalance_inventory_threshold_bps: 30
+    tp_requote_sec: 10
+    widen_on_wick_bps: 10
+    cross_exchange_netting: true
+
+  risk_caps:
+    max_open_orders_per_symbol: 50
+    max_global_open_orders: 1500
+    max_net_inventory_usd_per_symbol: 50000
+    max_global_net_inventory_usd: 400000
+    max_per_exchange_inventory_usd: 200000
+    cancel_excess_orders: true
+    clamp_side_on_excess: true
+
+  order_hygiene:
+    enabled: true
+    max_order_age_sec: 90
+    drift_bps_requote: 3
+    stale_depth_bps: 8
+    max_replace_per_cycle: 20
+    min_delay_between_requotes_ms: 150
+    require_at_touch: false
+    tick_offset: 1
+    orphan_scan_every_sec: 600
+    cancel_on_symbol_pause: true
+    max_open_orders_per_symbol_soft: 30
+
+  monitoring:
+    prometheus_enabled: true
+    per_exchange_metrics: true
+
+  alerts:
+    enabled: true
+    route: "telegram"
+    min_level: "warning"
+    exchange_specific_alerts: true
+
+  throttle:
+    enabled: true
+    batch_size: 12
+    jitter_ms: 50
+    per_exchange_throttle: true
