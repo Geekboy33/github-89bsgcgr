@@ -31,20 +31,8 @@ const SystemLogs: React.FC = () => {
   const fetchLogs = async () => {
     try {
       setError(null);
-      const params = new URLSearchParams({
-        limit: '100',
-        ...(levelFilter !== 'ALL' && { level: levelFilter }),
-        ...(componentFilter !== 'ALL' && { component: componentFilter }),
-        ...(searchTerm && { search: searchTerm })
-      });
-      
-      const response = await fetch(`/api/v1/logs?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setLogs(data);
-      } else {
-        throw new Error('Failed to fetch logs');
-      }
+      // API endpoint not yet implemented
+      setLogs([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {

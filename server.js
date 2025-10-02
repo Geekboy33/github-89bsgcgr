@@ -224,9 +224,9 @@ app.post('/api/kucoin-test-proxy', async (req, res) => {
     try {
         const { testType, params = {} } = req.body;
         log(`KuCoin test request: ${testType}`);
-        
+
         const kucoinConfig = secrets?.exchanges?.kucoin || {};
-        
+
         if (!kucoinConfig.api_key || !kucoinConfig.api_secret || !kucoinConfig.passphrase) {
             return res.json({
                 success: false,
@@ -239,10 +239,10 @@ app.post('/api/kucoin-test-proxy', async (req, res) => {
                 testType
             });
         }
-        
+
         // Make real API call to KuCoin
         const result = await makeKuCoinAPICall(testType, params, kucoinConfig);
-        
+
         res.json({
             success: result.success,
             data: result.data,
@@ -250,13 +250,42 @@ app.post('/api/kucoin-test-proxy', async (req, res) => {
             testType,
             real_api: true
         });
-        
+
     } catch (error) {
         log(`KuCoin test error: ${error.message}`);
         res.json({
             success: false,
             error: error.message,
             testType: req.body.testType
+        });
+    }
+});
+
+// New endpoint for symbols data
+app.get('/api/v1/kucoin/symbols', async (req, res) => {
+    try {
+        const kucoinConfig = secrets?.exchanges?.kucoin || {};
+
+        if (!kucoinConfig.api_key || !kucoinConfig.api_secret || !kucoinConfig.passphrase) {
+            return res.json({
+                success: false,
+                error: "KuCoin credentials not configured"
+            });
+        }
+
+        const result = await makeKuCoinAPICall('symbols', {}, kucoinConfig);
+
+        res.json({
+            success: result.success,
+            symbols: result.data,
+            error: result.error
+        });
+
+    } catch (error) {
+        log(`KuCoin symbols error: ${error.message}`);
+        res.json({
+            success: false,
+            error: error.message
         });
     }
 });

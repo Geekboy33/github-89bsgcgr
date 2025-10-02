@@ -98,45 +98,23 @@ export const MarketMakerProvider: React.FC<MarketMakerProviderProps> = ({ childr
   const refreshData = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      // Fetch market data
-      const marketResponse = await fetch('/api/v1/market-data');
-      if (marketResponse.ok) {
-        const marketData = await marketResponse.json();
-        setMarketData(marketData);
+      // Check backend health first
+      const healthResponse = await fetch('http://localhost:8000/health');
+      if (healthResponse.ok) {
+        const health = await healthResponse.json();
+        setIsConnected(health.status === 'healthy');
+      } else {
+        setIsConnected(false);
       }
 
-      // Fetch positions
-      const positionsResponse = await fetch('/api/v1/positions');
-      if (positionsResponse.ok) {
-        const positions = await positionsResponse.json();
-        setPositions(positions);
-      }
-
-      // Fetch orders
-      const ordersResponse = await fetch('/api/v1/orders');
-      if (ordersResponse.ok) {
-        const orders = await ordersResponse.json();
-        setOrders(orders);
-      }
-
-      // Fetch metrics
-      const metricsResponse = await fetch('/api/v1/metrics');
-      if (metricsResponse.ok) {
-        const metrics = await metricsResponse.json();
-        setMetrics(metrics);
-      }
-
-      // Check system status
-      const statusResponse = await fetch('/api/v1/system/status');
-      if (statusResponse.ok) {
-        const status = await statusResponse.json();
-        setIsConnected(status.connected);
-      }
+      // Note: The /api/v1/* endpoints are not yet implemented
+      // This is a placeholder for future implementation
+      // For now, we'll use mock data or skip these calls
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch data');
+      setError(err instanceof Error ? err.message : 'Backend server not available');
       setIsConnected(false);
     } finally {
       setIsLoading(false);
@@ -144,35 +122,27 @@ export const MarketMakerProvider: React.FC<MarketMakerProviderProps> = ({ childr
   };
 
   const updateRiskMode = (mode: 'conservative' | 'aggressive' | 'aggressive_plus') => {
-    fetch('/api/v1/risk/mode', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode })
-    }).then(() => {
-      setMetrics(prev => ({ ...prev, riskMode: mode }));
-    }).catch(err => {
-      setError(`Failed to update risk mode: ${err.message}`);
-    });
+    // Update local state immediately
+    setMetrics(prev => ({ ...prev, riskMode: mode }));
+
+    // API endpoint not yet implemented
+    console.log('Risk mode updated locally:', mode);
   };
 
   const cancelOrder = (orderId: string) => {
-    fetch(`/api/v1/orders/${orderId}/cancel`, {
-      method: 'POST'
-    }).then(() => {
-      setOrders(prev => prev.filter(order => order.id !== orderId));
-    }).catch(err => {
-      setError(`Failed to cancel order: ${err.message}`);
-    });
+    // Update local state immediately
+    setOrders(prev => prev.filter(order => order.id !== orderId));
+
+    // API endpoint not yet implemented
+    console.log('Order cancelled locally:', orderId);
   };
 
   const closePosition = (symbol: string) => {
-    fetch(`/api/v1/positions/${symbol}/close`, {
-      method: 'POST'
-    }).then(() => {
-      setPositions(prev => prev.filter(pos => pos.symbol !== symbol));
-    }).catch(err => {
-      setError(`Failed to close position: ${err.message}`);
-    });
+    // Update local state immediately
+    setPositions(prev => prev.filter(pos => pos.symbol !== symbol));
+
+    // API endpoint not yet implemented
+    console.log('Position closed locally:', symbol);
   };
 
   const value: MarketMakerContextType = {

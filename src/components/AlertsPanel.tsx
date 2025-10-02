@@ -25,13 +25,8 @@ const AlertsPanel: React.FC = () => {
   const fetchAlerts = async () => {
     try {
       setError(null);
-      const response = await fetch('/api/v1/alerts');
-      if (response.ok) {
-        const data = await response.json();
-        setAlerts(data);
-      } else {
-        throw new Error('Failed to fetch alerts');
-      }
+      // API endpoint not yet implemented
+      setAlerts([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -40,35 +35,20 @@ const AlertsPanel: React.FC = () => {
   };
 
   const markAsRead = (id: string) => {
-    fetch(`/api/v1/alerts/${id}/read`, {
-      method: 'POST'
-    }).then(() => {
-      setAlerts(prev => prev.map(alert => 
-        alert.id === id ? { ...alert, read: true } : alert
-      ));
-    }).catch(err => {
-      setError(`Failed to mark alert as read: ${err.message}`);
-    });
+    // Update local state immediately
+    setAlerts(prev => prev.map(alert =>
+      alert.id === id ? { ...alert, read: true } : alert
+    ));
   };
 
   const markAllAsRead = () => {
-    fetch('/api/v1/alerts/read-all', {
-      method: 'POST'
-    }).then(() => {
-      setAlerts(prev => prev.map(alert => ({ ...alert, read: true })));
-    }).catch(err => {
-      setError(`Failed to mark all alerts as read: ${err.message}`);
-    });
+    // Update local state immediately
+    setAlerts(prev => prev.map(alert => ({ ...alert, read: true })));
   };
 
   const deleteAlert = (id: string) => {
-    fetch(`/api/v1/alerts/${id}`, {
-      method: 'DELETE'
-    }).then(() => {
-      setAlerts(prev => prev.filter(alert => alert.id !== id));
-    }).catch(err => {
-      setError(`Failed to delete alert: ${err.message}`);
-    });
+    // Update local state immediately
+    setAlerts(prev => prev.filter(alert => alert.id !== id));
   };
 
   const getAlertIcon = (type: string) => {
