@@ -58,15 +58,15 @@ class MultiExchangeManager:
                 # Get credentials from secrets
                 credentials = self.secrets.get("exchanges", {}).get(exchange_name, {})
                 if not credentials.get("api_key") or not credentials.get("api_secret"):
-                    self.log.warning(f"Missing credentials for {exchange_name}")
+                    logger.warning(f"Missing credentials for {exchange_name}")
                     continue
-                
+
                 # Merge config with credentials
                 full_config = {**exchange_config, **credentials}
-                
+
                 # Validate configuration
                 if not ExchangeFactory.validate_exchange_config(exchange_name, full_config):
-                    self.log.error(f"Invalid configuration for {exchange_name}")
+                    logger.error(f"Invalid configuration for {exchange_name}")
                     continue
                 
                 # Create exchange wrapper
@@ -86,12 +86,12 @@ class MultiExchangeManager:
                         api_calls_limit=exchange_config.get("rate_limit", 600),
                         features=exchange_config.get("features", {})
                     )
-                    self.log.info(f"Successfully connected to {exchange_name}")
+                    logger.info(f"Successfully connected to {exchange_name}")
                 else:
-                    self.log.error(f"Failed to connect to {exchange_name}")
-                    
+                    logger.error(f"Failed to connect to {exchange_name}")
+
             except Exception as e:
-                self.log.error(f"Error initializing {exchange_name}: {e}")
+                logger.error(f"Error initializing {exchange_name}: {e}")
     
     async def start_health_monitoring(self):
         """Start continuous health monitoring"""
@@ -100,7 +100,7 @@ class MultiExchangeManager:
                 await self._health_check_all()
                 await asyncio.sleep(self.health_check_interval)
             except Exception as e:
-                self.log.error(f"Health monitoring error: {e}")
+                logger.error(f"Health monitoring error: {e}")
                 await asyncio.sleep(5)
     
     async def _health_check_all(self):
@@ -285,9 +285,9 @@ class MultiExchangeManager:
             try:
                 if hasattr(exchange.exchange, 'close'):
                     await exchange.exchange.close()
-                self.log.info(f"Closed connection to {exchange_name}")
+                logger.info(f"Closed connection to {exchange_name}")
             except Exception as e:
-                self.log.error(f"Error closing {exchange_name}: {e}")
+                logger.error(f"Error closing {exchange_name}: {e}")
     
     def is_system_healthy(self) -> bool:
         """Check if system has minimum required healthy exchanges"""
