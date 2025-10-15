@@ -13,6 +13,7 @@ import KuCoinTest from './components/KuCoinTest';
 import LiveTransactions from './components/LiveTransactions';
 import LiveOrders from './components/LiveOrders';
 import PnLAnalytics from './components/PnLAnalytics';
+import KuCoinDashboard from './components/KuCoinDashboard';
 import { MarketMakerProvider } from './context/MarketMakerContext';
 
 function App() {
@@ -20,10 +21,11 @@ function App() {
   const [isRunning, setIsRunning] = useState(false);
 
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: Activity },
+    { id: 'kucoin-dashboard', label: 'KuCoin Live', icon: Activity },
     { id: 'live-transactions', label: 'Live Transactions', icon: Zap },
     { id: 'live-orders', label: 'Live Orders', icon: List },
     { id: 'pnl', label: 'PnL Analytics', icon: TrendingDown },
+    { id: 'dashboard', label: 'Dashboard', icon: Activity },
     { id: 'positions', label: 'Positions', icon: TrendingUp },
     { id: 'metrics', label: 'Metrics', icon: BarChart3 },
     { id: 'backtest', label: 'Backtest', icon: TestTube },
@@ -37,6 +39,8 @@ function App() {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'kucoin-dashboard':
+        return <KuCoinDashboard />;
       case 'dashboard':
         return <Dashboard />;
       case 'live-transactions':
@@ -64,7 +68,7 @@ function App() {
       case 'alerts':
         return <AlertsPanel />;
       default:
-        return <Dashboard />;
+        return <KuCoinDashboard />;
     }
   };
 
